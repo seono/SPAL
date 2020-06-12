@@ -8,10 +8,11 @@ from django.views.generic.list import ListView
 from mypage.models import DstagramPhoto, Comment, Dstagram
 from mypage.forms import CommentForm
 from django.http import HttpResponseForbidden,HttpResponseRedirect
-
+from db import settings
 from django.contrib.auth.mixins import LoginRequiredMixin       #권한 제한하는 건데 @login_required라는 decorator는 함수형 (def)뷰에서 사용 지금은 클래스 형 뷰->Mixin사용
 from django.db.models import Q, Count
 from django.utils import timezone
+from accounts.models import User
 
 class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
     template_name="home/list.html"
@@ -36,12 +37,10 @@ class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
             .annotate(
                 like_count=Count('likes')
             ).order_by("-like_count")
-            print(dstagram)
             queryset = dstagram\
             .prefetch_related('photos')\
             .prefetch_related('comments__author')\
             .select_related('author')
-            print(queryset)
         elif l == 3:
             dstagram = Dstagram.objects.extra(where=[where])
             queryset = Dstagram.objects\
@@ -87,11 +86,9 @@ class CCCommentCreateView(CreateView):
      model = Comment
      fields = ['content']
      template_name = 'home/list.html'
-
      def form_valid(self, form):
           comment = form.save(commit=False)
           comment.author = self.request.user
-          print("Here")
           comment.p_comment = Comment.objects.get(pk=self.kwargs.get('comment_id'))
           comment.save()
           return HttpResponseRedirect(self.request.POST.get('next', '/'))
@@ -113,3 +110,52 @@ class PhotoLike(View):
             referer_url = request.META.get('HTTP_REFERER')
             path = urlparse(referer_url).path
             return HttpResponseRedirect(path)
+    
+class SearchView(FormMixin,LoginRequiredMixin,ListView):
+    template_name="home/list.html"
+    form_class = CommentForm
+    paginate_by = 20
+
+    def get_context_data(self, **kwargs):
+        context = super(SearchView, self).get_context_data(**kwargs)
+
+        context['comment_form'] = self.get_form()
+        return context
+
+    def get_queryset(self):
+        queryset = None
+        if 'q' in self.request.GET:
+            word = self.request.GET.get('q')
+            post = Dstagram.objects.all()
+            if word[0] == '#':
+                post = post.filter(
+                    content__icontains=word
+                )
+                queryset = post.prefetch_related('photos')\
+                    .prefetch_related('comments__author')\
+                    .select_related('author')\
+                    .order_by('-created','-updated')
+            else:
+                u = User.objects.all()
+                u = u.filter(Q(user_name=word))
+                if u.count() > 0:
+                    post = post.filter(
+                        Q(author_id=u[0].user_id)
+                    )
+                    queryset = post.prefetch_related('photos')\
+                        .prefetch_related('comments__author')\
+                        .select_related('author')\
+                        .order_by('-created','-updated')
+                else:
+                    return u     
+        else:        
+            post = Dstagram.objects.all()
+            m = self.request.user
+            post = post.filter(
+                Q(author_id=m.user_name)
+            )
+            queryset = post.prefetch_related('photos')\
+                .prefetch_related('comments__author')\
+                .select_related('author')\
+                .order_by('-created','-updated')
+        return queryset

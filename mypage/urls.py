@@ -12,7 +12,6 @@ urlpatterns = [
     path('like/<int:post_id>/',PhotoLike.as_view(), name="like"),
     path('comment/<int:comment_id>/', CommentCreateView.as_view(), name="comment"),
     path('comment/<int:comment_id>/', CCCommentCreateView.as_view(), name="CCCcomment"),
-    path('search/', PhotoListView.as_view(), name="search"),
     path('user/<str:user_id>/', UserPostListView.as_view(), name="userpage"),
     path('follow/<str:user_id>/',UserFollow.as_view(), name="follow"),
 ]

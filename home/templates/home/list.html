@@ -13,7 +13,7 @@
     <div class = "blog-container">
         <div class="blog-post">
             <p>
-                <img class = "user-img" src="{{post.author.user_image.url}}"></a>
+                <img class = "user-img" src="{{post.author.getImage}}"></a>
                 <a class = "user-name" href="{% url 'mypage:userpage' post.author.user_id%}">{{post.author.user_name}}</a>
                 <span class = "created_time">{{post.created}}</span>
             </p>

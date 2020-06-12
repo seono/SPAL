@@ -9,4 +9,5 @@ urlpatterns = [
     path('detail/<int:pk>/',PhotoDetailView.as_view(), name='photo_detail'),
     path('comment/<int:comment_id>/', CommentCreateView.as_view(), name="home_comment"),
     path('CCCcomment/<int:comment_id>/', CCCommentCreateView.as_view(), name="home_CCCcomment"),
+    path('search/', SearchView.as_view(), name="search"),
 ]

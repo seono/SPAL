@@ -62,14 +62,13 @@
             <div class="row flex-nowrap justify-content-between align-items-center top-items">
                 <div class="col-4 pt-1">
                     <a class="text-muted" href="{%url 'mypage:photo_upload'%}">글쓰기</a>
-                    <a class="text-muted" href="#">프로필 수정</a>
                 </div>
                 <div class="col-4 text-center">
                     <a class="blog-header-logo text-dark" href="{%url 'home:list'%}">Dstagram</a>
                 </div>
                 {%if user.is_authenticated%}
                 <div class="col-4 d-flex justify-content-end align-items-center nav-right-menu">
-                    <form action="{% url 'mypage:search' %}" method="get">{%csrf_token%}
+                    <form action="{% url 'home:search' %}" method="get">{%csrf_token%}
                         <input class="search-bar form-control" type="search" placeholder="search..." aria-label="search" name="q"/>
                         <button class="search-btn" type="submit"></button>
                     </form>

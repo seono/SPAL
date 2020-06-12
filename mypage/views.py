@@ -28,7 +28,6 @@ class UserPostListView(FormMixin,LoginRequiredMixin,ListView):
         me = self.request.user
         
         try:
-            print("here")
             f_list = Relation.objects.filter(from_user=me, to_user=user, type='f')
             if f_list:
                 context['is_follow'] = True
@@ -79,23 +78,23 @@ class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
                     .select_related('author')\
                     .order_by('-created','-updated')
             else:
-                user = User.objects.all()
-                user = user.filter(Q(user_name=word))
-                if user.count() > 0:
+                u = User.objects.all()
+                u = u.filter(Q(user_name=word))
+                if u.count() > 0:
                     post = post.filter(
-                        Q(author_id=user.user_id)
+                        Q(author_id=u[0].user_id)
                     )
                     queryset = post.prefetch_related('photos')\
                         .prefetch_related('comments__author')\
                         .select_related('author')\
                         .order_by('-created','-updated')
                 else:
-                    return user     
+                    return u     
         else:        
             post = Dstagram.objects.all()
-            user = self.request.user
+            m = self.request.user
             post = post.filter(
-                Q(author_id=user.user_id)
+                Q(author_id=m.user_name)
             )
             queryset = post.prefetch_related('photos')\
                 .prefetch_related('comments__author')\
