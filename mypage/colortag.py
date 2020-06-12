@@ -6,7 +6,6 @@ import numpy as np
 import scipy
 import scipy.misc
 import scipy.cluster
-import cv2
 
 
 def is_same_color(rgb, rgb_):
