@@ -1,0 +1,8 @@
+python manage.py migrate admin zero
+python manage.py migrate auth zero
+python manage.py migrate contenttypes zero
+python manage.py migrate sessions zero
+python manage.py makemigrations accounts
+python manage.py migrate accounts
+python manage.py makemigrations mypage
+python manage.py migrate mypage

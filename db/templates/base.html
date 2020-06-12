@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <link rel="canonical" href="https://getbootstrap.com/docs/4.3/examples/blog/">
+    <link href="/docs/4.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    {% load static %}
+    {% load crispy_forms_tags %}
+    <style>
+        .btn-like{
+            display: inline-block;
+            width: 25px;
+            height: 25px;
+            background:url("{% static 'images/like.png' %}");
+            background-repeat: no-repeat;
+            background-position: center;
+            text-indent: -9999px;
+            overflow:hidden;
+            border:none;    
+        }
+        .btn-like.active{
+            display: inline-block;
+            background:url("{% static 'images/like_active.png' %}");
+            width: 25px;
+            height: 25px;
+            background-repeat: no-repeat;
+            background-position: center;
+            text-indent: -9999px;
+            overflow:hidden;
+            border:none;
+        }
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+      .search-bar{
+          margin-bottom: -15px;
+      }
+      .search-btn{
+          padding:0px;
+          border:0px;
+      }
+    </style>
+    <link href="https://fonts.googleapis.com/css?family=Playfair+Display:700,900" rel="stylesheet">
+    <link href="{%static 'css/blog.css'%}" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <title>SPAL{%block title%}{%endblock%}</title>
+</head>
+<body>
+    <div class="container">
+        <header class="blog-header py-3">
+            <div class="row flex-nowrap justify-content-between align-items-center top-items">
+                <div class="col-4 pt-1">
+                    <a class="text-muted" href="{%url 'mypage:photo_upload'%}">글쓰기</a>
+                    <a class="text-muted" href="#">프로필 수정</a>
+                </div>
+                <div class="col-4 text-center">
+                    <a class="blog-header-logo text-dark" href="{%url 'home:list'%}">Dstagram</a>
+                </div>
+                {%if user.is_authenticated%}
+                <div class="col-4 d-flex justify-content-end align-items-center nav-right-menu">
+                    <form action="{% url 'mypage:search' %}" method="get">{%csrf_token%}
+                        <input class="search-bar form-control" type="search" placeholder="search..." aria-label="search" name="q"/>
+                        <button class="search-btn" type="submit"></button>
+                    </form>
+                    <a class="btn btn-sm btn-outline-secondary mypage" href="{%url 'mypage:mypage'%}">My Page</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{%url 'accounts:logout'%}">Logout</a>
+                </div>
+                {%else%}
+                <div class="col-4 d-flex justify-content-end align-items-center">
+                    <a class="btn btn-sm btn-outline-secondary" href="{%url 'accounts:register'%}">Signup</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="{%url 'accounts:login'%}">Login</a>
+                </div>
+                {%endif%}
+            </div>
+        </header>
+    {%block content%}
+    {%endblock%}
+    </div>
+    
+    <footer class="blog-footer">
+        <p>&copy; 2020 SeonHo. Powered By Django 3.0</p>
+        <p>Blog template built for <a href="https://getbootstrap.com/">Bootstrap</a> by <a href="https://twitter.com/mdo">@mdo</a>.</p>
+        <p>
+        <a href="#">Back to top</a>
+        </p>
+    </footer>
+</body>
+</html>

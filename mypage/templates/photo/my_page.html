@@ -1,0 +1,86 @@
+{%extends 'base.html'%}
+{% load crispy_forms_tags %}
+{%block title%}-List{%endblock%}
+{%block content%}
+<div class="row">
+    <div class ="user-profile">
+        <div class = "profile-img-con">
+        <img class = "profile-user-img" src="{{user.user_image.url}}">
+        </div>
+        <div class = "profile-user-right">
+            <div class="profile-user">
+                <div class = "profile-user-name">{{user.user_name}}</div>
+                <div class = "profile-user-fol">
+                    <div class="profile-user-follow">
+                        <div class="follow-top">팔로우 수</div>
+                        <div class="follow-top">팔로워 수</div>
+                    </div>
+                    <div class="profile-user-follow">
+                        <div class="follow">{%if user.follow.all.count%}{{user.follow.all.count}}{%else%}0{%endif%}</div>
+                        <div class="follow">{%if user.user_set.all.count%}{{user.user_set.all.count}}{%else%}0{%endif%}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="profile-user-profile">{%if user.user_profile%}{{user.user_profile}}{%else%}hi...{%endif%}</div>
+    </div>
+</div>
+    {%for post in object_list%}
+    <div class="row">
+        <div class = "blog-container">
+            <div class="blog-post">
+                <p>
+                    <img class = "user-img" src="{{post.author.user_image.url}}"></a>
+                    <a class = "user-name" href="{% url 'mypage:userpage' post.author.user_id%}">{{post.author.user_name}}</a>
+                    <span class = "created_time">{{post.created}}</span>
+                </p>
+                <div class="photo-container">
+                    {% for dstagram_photo in post.photos.all %}
+                        <div class="photo-carousel">
+                            <img src="{{ dstagram_photo.photo.url }}" style="width:80%;"/>
+                        </div>
+                    {% endfor %}
+                <a href="{% url 'mypage:like' post.id %}" class="float-left btn-like {%if user in post.likes.all %} active {%endif%}">좋아요!</a>
+                
+                {% if post.likes.all.count %}
+                <span class = "float-left">
+                    {{post.likes.all.count}}
+                </span>
+                {%endif%}
+            </br>
+                <span class = "user-name">{{post.author.user_name}}</span>
+                <span class="text-container">{{post.content|linebreaksbr}}</span>
+                </div>
+            </div>
+            <div class="blog-post-v2">
+                <form action="{% url 'mypage:comment' post.id %}" method="post">{%csrf_token%}
+                    {{comment_form | crispy}}
+                    <div class="comment_submit_btn"><input class="input_comment_create" type="submit" value="댓글 달기"/></div>
+                </form>
+            </div>
+            <div class="blog-post">
+                {%for comment in post.comments.all %}
+                <li class="comment">
+                    <span class="user-name">{{comment.author.user_name}}</span>
+                    <span>{{comment.content}}</span>
+                    <div class="blog-post-v2 comment_to_comment">
+                        <form action="{% url 'mypage:CCCcomment' comment.id %}" method="post">{%csrf_token%}
+                            {{comment_form | crispy}}
+                            <div class="comment_submit_btn"><input class="input_comment_create" type="submit" value="댓글 달기"/></div>
+                        </form>
+                    </div>
+                    {%if comment.comment_set.all %}
+                        {%for comment_comment in comment.comment_set.all %}
+                        <li class="comment_to_comment">
+                            <span class="user-name">{{comment_comment.author.user_name}}</span>
+                            <span>{{comment_comment.content}}</span>
+                        </li>
+                        {%endfor%}
+                    {%endif%}
+                </li>
+                {%endfor%}
+            </div>
+        </div>
+    </div>
+    {%endfor%}
+{%endblock%}
