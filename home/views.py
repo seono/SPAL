@@ -5,7 +5,7 @@ from django.views.generic.detail import DetailView
 from django.views.generic.edit import FormMixin, DeleteView, CreateView
 from django.views.generic.list import ListView
 # Create your views here.
-from mypage.models import DstagramPhoto, Comment, Dstagram
+from mypage.models import DstagramPhoto, Comment, Dstagram, Tag
 from mypage.forms import CommentForm
 from django.http import HttpResponseForbidden,HttpResponseRedirect
 from db import settings
@@ -13,6 +13,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin       #권한 제한�
 from django.db.models import Q, Count
 from django.utils import timezone
 from accounts.models import User
+
+from django.db import connection,transaction
+cursor = connection.cursor()
 
 class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
     template_name="home/list.html"
@@ -30,32 +33,34 @@ class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
         now = timezone.now()
         year = now.year
         month = now.month
-        where = '%(year)s>=YEAR(created) AND %(month)s<=MONTH(created)'%\
+        where = '%(year)s>=YEAR(O.created) AND %(month)s<=MONTH(O.created)'%\
             {'year':year, 'month':month}
+        print(where)
         if l == 1:
-            dstagram = Dstagram.objects.all()\
-            .annotate(
-                like_count=Count('likes')
-            ).order_by("-like_count")
+            dstagram = Dstagram.objects.raw(
+                "SELECT * from mypage_dstagram O,\
+                (SELECT dstagram_id, count(*) as like_count from mypage_dstagram_likes group by dstagram_id)\
+                     S where  O.id = S.dstagram_id order by like_count desc"
+            )
             queryset = dstagram\
             .prefetch_related('photos')\
-            .prefetch_related('comments__author')\
-            .select_related('author')
+            .prefetch_related('comments__author')
         elif l == 3:
-            dstagram = Dstagram.objects.extra(where=[where])
-            queryset = Dstagram.objects\
+            dstagram = Dstagram.objects.raw(
+                "SELECT * from mypage_dstagram O, \
+                    (SELECT dstagram_id, count(*) as like_count from mypage_dstagram_likes group by dstagram_id) S\
+                        where '%s' and O.id = S.dstagram_id order by like_count desc" % where
+            )
+            queryset = dstagram\
             .prefetch_related('photos')\
-            .prefetch_related('comments__author')\
-            .select_related('author')\
-            .annotate(
-                like_count=Count('likes')
-            ).order_by("-like_count")
+            .prefetch_related('comments__author')
         else:
-            queryset = Dstagram.objects\
+            dstagram = Dstagram.objects.raw(
+                "SELECT * from mypage_dstagram order by created desc, updated desc"
+            )
+            queryset = dstagram\
                 .prefetch_related('photos')\
-                .prefetch_related('comments__author')\
-                .select_related('author')\
-                .order_by('-created','-updated')
+                .prefetch_related('comments__author')
         return queryset
 
 class PhotoDetailView(LoginRequiredMixin,DetailView):
@@ -76,22 +81,24 @@ class CommentCreateView(CreateView):
      template_name = 'home/list.html'
 
      def form_valid(self, form):
-          comment = form.save(commit=False)
-          comment.author = self.request.user
-          comment.dstagram = Dstagram.objects.get(pk=self.kwargs.get('comment_id'))
-          comment.save()
-          return HttpResponseRedirect(self.request.POST.get('next', '/'))
+        comment = form.save(commit=False)
+        now = timezone.now()
+        query = "insert into mypage_comment(content, author_id, created, updated, dstagram_id)\
+             values('%s', '%s', '%s', '%s','%s')" %(comment.content, self.request.user.user_id,now,now,self.kwargs.get('comment_id'))
+        cursor.execute(query)
+        return HttpResponseRedirect(self.request.POST.get('next', '/'))
 
 class CCCommentCreateView(CreateView):
      model = Comment
      fields = ['content']
      template_name = 'home/list.html'
      def form_valid(self, form):
-          comment = form.save(commit=False)
-          comment.author = self.request.user
-          comment.p_comment = Comment.objects.get(pk=self.kwargs.get('comment_id'))
-          comment.save()
-          return HttpResponseRedirect(self.request.POST.get('next', '/'))
+        comment = form.save(commit=False)
+        now = timezone.now()
+        query = "insert into mypage_comment(content, author_id, created, updated, p_comment_id)\
+            values('%s', '%s', '%s', '%s','%s')" %(comment.content, self.request.user.user_id,now,now,self.kwargs.get('comment_id'))
+        cursor.execute(query)
+        return HttpResponseRedirect(self.request.POST.get('next', '/'))
 
 
 class PhotoLike(View):
@@ -128,34 +135,27 @@ class SearchView(FormMixin,LoginRequiredMixin,ListView):
             word = self.request.GET.get('q')
             post = Dstagram.objects.all()
             if word[0] == '#':
-                post = post.filter(
-                    content__icontains=word
+                t = word[1:len(word)]
+                post = Dstagram.objects.raw(
+                    "SELECT * from mypage_dstagram P\
+                         where P.id IN (select dstagram_id from mypage_tag t where t.name like '%s') \
+                             order by created desc, updated desc" % t
                 )
                 queryset = post.prefetch_related('photos')\
-                    .prefetch_related('comments__author')\
-                    .select_related('author')\
-                    .order_by('-created','-updated')
+                    .prefetch_related('comments__author')
             else:
-                u = User.objects.all()
-                u = u.filter(Q(user_name=word))
-                if u.count() > 0:
-                    post = post.filter(
-                        Q(author_id=u[0].user_id)
-                    )
-                    queryset = post.prefetch_related('photos')\
-                        .prefetch_related('comments__author')\
-                        .select_related('author')\
-                        .order_by('-created','-updated')
-                else:
-                    return u     
+                post = Dstagram.objects.raw(
+                    "SELECT * from mypage_dstagram P \
+                        where P.author_id IN (select user_id from accounts_user t where t.user_name like '%s')\
+                             order by created desc, updated desc" % word
+                )
+                queryset = post.prefetch_related('photos')\
+                    .prefetch_related('comments__author')
+                return queryset
         else:        
-            post = Dstagram.objects.all()
-            m = self.request.user
-            post = post.filter(
-                Q(author_id=m.user_name)
+            post = Dstagram.objects.raw(
+                "SELECT * from mypage_dstgram order by created desc, updated desc"
             )
             queryset = post.prefetch_related('photos')\
-                .prefetch_related('comments__author')\
-                .select_related('author')\
-                .order_by('-created','-updated')
+                .prefetch_related('comments__author')
         return queryset

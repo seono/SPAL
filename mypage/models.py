@@ -11,12 +11,12 @@ class CommentManager(models.Manager):
     def get_queryset(self):
         return super(CommentManager, self).get_queryset()
 
+class Search(models.Model):
+    search = models.CharField(max_length=100)
 
 
 class Dstagram(Postable):
     pass
-class Search(models.Model):
-    search = models.CharField(max_length=100)
 
 class DstagramPhoto(TimeStampedMixin):
     photo = models.ImageField(upload_to=get_path, verbose_name='사진')
@@ -42,6 +42,7 @@ class Comment(Postable):
                             on_delete=models.CASCADE,
                             verbose_name='디스타그램')
     p_comment = models.ForeignKey('self',
+                            related_name='parent_comment',
                             blank=True, null=True,
                             on_delete=models.CASCADE)
     objects = CommentManager()

@@ -17,9 +17,9 @@ class TagManager(models.Manager):
 
 
 class Postable(TimeStampedMixin):
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='작성자', on_delete=models.CASCADE)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name='작성자',related_name='%(class)s_create', on_delete=models.CASCADE)
     content = models.TextField(max_length=100,blank=True, verbose_name='내용')
-    likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='%(class)s_like_post', blank=True)
+    likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='%(class)s_like', blank=True)
     
     class Meta:
         abstract=True

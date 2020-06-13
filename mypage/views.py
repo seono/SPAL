@@ -4,7 +4,7 @@ from django.views.generic.base import View
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from django.views.generic.edit import CreateView, DeleteView, UpdateView, FormMixin
-from .models import DstagramPhoto, Comment, Dstagram, Tag, Search
+from .models import DstagramPhoto, Comment, Dstagram, Tag
 from django.http import HttpResponseForbidden,HttpResponseRedirect, HttpResponse
 from urllib.parse import urlparse
 from .forms import DstagramForm,CommentForm, SearchForm
@@ -14,6 +14,9 @@ from accounts.models import User, Relation
 import re
 from django.core.exceptions import ObjectDoesNotExist
 from .colortag import *
+from django.db import connection,transaction
+from django.utils import timezone
+cursor = connection.cursor()
 
 class UserPostListView(FormMixin,LoginRequiredMixin,ListView):
     template_name="photo/user_page.html"
@@ -42,15 +45,11 @@ class UserPostListView(FormMixin,LoginRequiredMixin,ListView):
 
     def get_queryset(self):
         queryset = None
-        post = Dstagram.objects.all()
         user = User.objects.get(pk=self.kwargs.get('user_id'))
-        post = post.filter(
-            Q(author_id=user.user_id)
+        post = Dstagram.objects.raw(
+            "SELECT * from mypage_dstagram where author_id like '%s' order by created desc, updated desc"%user.user_id
         )
-        queryset = post.prefetch_related('photos')\
-            .prefetch_related('comments__author')\
-            .select_related('author')\
-            .order_by('-created','-updated')
+        queryset = post.prefetch_related('photos').prefetch_related('comments__author')
         return queryset
 
 class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
@@ -65,41 +64,11 @@ class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
         return context
 
     def get_queryset(self):
-        queryset = None
-        if 'q' in self.request.GET:
-            word = self.request.GET.get('q')
-            post = Dstagram.objects.all()
-            if word[0] == '#':
-                post = post.filter(
-                    content__icontains=word
-                )
-                queryset = post.prefetch_related('photos')\
-                    .prefetch_related('comments__author')\
-                    .select_related('author')\
-                    .order_by('-created','-updated')
-            else:
-                u = User.objects.all()
-                u = u.filter(Q(user_name=word))
-                if u.count() > 0:
-                    post = post.filter(
-                        Q(author_id=u[0].user_id)
-                    )
-                    queryset = post.prefetch_related('photos')\
-                        .prefetch_related('comments__author')\
-                        .select_related('author')\
-                        .order_by('-created','-updated')
-                else:
-                    return u     
-        else:        
-            post = Dstagram.objects.all()
-            m = self.request.user
-            post = post.filter(
-                Q(author_id=m.user_name)
-            )
-            queryset = post.prefetch_related('photos')\
-                .prefetch_related('comments__author')\
-                .select_related('author')\
-                .order_by('-created','-updated')
+        queryset = None       
+        post = Dstagram.objects.raw(
+            "SELECT * from mypage_dstagram where author_id like '%s' order by created desc, updated desc"%self.request.user.user_id
+        )
+        queryset = post.prefetch_related('photos').prefetch_related('comments__author')
         return queryset
 
 class PhotoUploadView(LoginRequiredMixin,CreateView):
@@ -115,13 +84,19 @@ class PhotoUploadView(LoginRequiredMixin,CreateView):
         #tag 인식
         p = re.compile('#[^\s\t\n\f\v#]{1,10}')
         tags = p.findall(content)
-        dstagram.content = content
-        dstagram.save()
+        # dstagram.content = content
+        # dstagram.save()
+        now = timezone.now()
+        query = "insert into mypage_dstagram(content, author_id, created, updated) values('%s', '%s', '%s', '%s')" %(content, self.request.user.user_id, now,now)
+        cursor.execute(query)
+        cursor.execute("SELECT * from mypage_dstagram where created = '%s'"%now)
+        row = cursor.fetchone()
+        id = int(row[0])
         for i, tag in enumerate(tags):
             tags[i] = tag[1:len(tag)]
         for tag in tags:
-            t = Tag(name = tag, dstagram=dstagram)
-            t.save()
+            query = "insert into mypage_tag(name, dstagram_id) values('%s','%d')"%(tag,id)
+            cursor.execut(query)
         if self.request.FILES:
             for i,f in enumerate(self.request.FILES.getlist('images')):
                 # rgb color 추출
@@ -129,8 +104,8 @@ class PhotoUploadView(LoginRequiredMixin,CreateView):
                     c_tags = color(f)
                     if len(c_tags)>0:
                         for cs in c_tags:
-                            t = Tag(name = cs, dstagram=dstagram)
-                            t.save()   
+                            query = "insert into mypage_tag(name, dstagram_id) values('%s','%d')"%(cs,id)  
+                dstagram = Dstagram.objects.get(id=id)
                 feed_photo = DstagramPhoto(dstagram=dstagram, photo=f)
                 feed_photo.save()
         return super(PhotoUploadView, self).form_valid(form)
@@ -165,9 +140,10 @@ class CommentCreateView(CreateView):
 
     def form_valid(self, form):
         comment = form.save(commit=False)
-        comment.author = self.request.user
-        comment.dstagram = Dstagram.objects.get(pk=self.kwargs.get('comment_id'))
-        comment.save()
+        now = timezone.now()
+        query = "insert into mypage_comment(content, author_id, created, updated, dstagram_id)\
+             values('%s', '%s', '%s', '%s','%s')" %(comment.content, self.request.user.user_id,now,now,self.kwargs.get('comment_id'))
+        cursor.execute(query)
         return HttpResponseRedirect(self.request.POST.get('next', '/'))
 
 class CCCommentCreateView(CreateView):
@@ -176,11 +152,12 @@ class CCCommentCreateView(CreateView):
      template_name = 'photo/user_page.html'
 
      def form_valid(self, form):
-          comment = form.save(commit=False)
-          comment.author = self.request.user
-          comment.p_comment = Comment.objects.get(pk=self.kwargs.get('comment_id'))
-          comment.save()
-          return HttpResponseRedirect(self.request.POST.get('next', '/'))
+        comment = form.save(commit=False)
+        now = timezone.now()
+        query = "insert into mypage_comment(content, author_id, created, updated, p_comment_id)\
+            values('%s', '%s', '%s', '%s','%s')" %(comment.content, self.request.user.user_id,now,now,self.kwargs.get('comment_id'))
+        cursor.execute(query)
+        return HttpResponseRedirect(self.request.POST.get('next', '/'))
 
 
 class PhotoLike(View):
@@ -200,6 +177,26 @@ class PhotoLike(View):
             path = urlparse(referer_url).path
             return HttpResponseRedirect(path)
 
+
+class CommentLike(View):
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:    #로그인확인
+            return HttpResponseForbidden()
+        else:
+            if 'comment_id' in kwargs:
+                comment_id = kwargs['comment_id']
+                comment = Comment.objects.get(pk=self.kwargs.get('comment_id'))
+                user = request.user
+                if user in comment.likes.all():
+                    query = "DELETE from mypage_comment_likes where user_id = '%s'"%user.user_id
+                    cursor.execute(query)
+                else:
+                    query = "INSERT INTO mypage_comment_likes(comment_id, user_id) values(%d, '%s')"%(comment_id, user.user_id)
+                    cursor.execute(query)
+            referer_url = request.META.get('HTTP_REFERER')
+            path = urlparse(referer_url).path
+            return HttpResponseRedirect(path)
+
 class UserFollow(View):
     def get(self, request, *args, **kwargs):
         if not request.user.is_authenticated:    #로그인확인
@@ -209,14 +206,15 @@ class UserFollow(View):
                 user_id = kwargs['user_id']
                 user = User.objects.get(pk=self.kwargs.get('user_id'))
                 me = request.user
-            try:
-                f_list = Relation.objects.get(from_user=me, to_user=user, type='f')
-                if f_list:
-                    f_list.delete()
-            except AttributeError:
-                    Relation.objects.create(from_user=me, to_user=user, type='f')
-            except ObjectDoesNotExist:
-                    Relation.objects.create(from_user=me, to_user=user, type='f')
+                query_del = "DELETE FROM accounts_relation where type like 'f' and from_user_id like '%s' and to_user_id like'%s'"%(me.user_id, user.user_id)
+                query_in = "INSERT INTO accounts_relation(type, from_user_id, to_user_id) values('f', '%s', '%s')"%(me.user_id, user.user_id)
+                query_self = "SELECT * from accounts_relation where type like 'f' and from_user_id like '%s' and to_user_id like '%s'"%(me.user_id, user.user_id)
+                cursor.execute(query_self)
+                row = cursor.fetchone()
+                if row is None:
+                    cursor.execute(query_in)
+                else:
+                    cursor.execute(query_del)
             referer_url = request.META.get('HTTP_REFERER')
             path = urlparse(referer_url).path
             return HttpResponseRedirect(path)

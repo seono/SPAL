@@ -13,5 +13,6 @@ urlpatterns = [
     path('comment/<int:comment_id>/', CommentCreateView.as_view(), name="comment"),
     path('comment/<int:comment_id>/', CCCommentCreateView.as_view(), name="CCCcomment"),
     path('user/<str:user_id>/', UserPostListView.as_view(), name="userpage"),
+    path('commentlike/<int:comment_id>/',CommentLike.as_view(), name="commentlike"),
     path('follow/<str:user_id>/',UserFollow.as_view(), name="follow"),
 ]

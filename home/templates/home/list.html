@@ -46,18 +46,34 @@
             <li class="comment">
                 <span class="user-name">{{comment.author.user_name}}</span>
                 <span>{{comment.content}}</span>
+                <a href="{% url 'mypage:commentlike' comment.id %}" class="float-left btn-like {%if user in comment.likes.all %} active {%endif%}">좋아요!</a>
+            
+                {% if comment.likes.all.count %}
+                <span class = "float-left">
+                    {{comment.likes.all.count}}
+                </span>
+                {%endif%}
                 <div class="blog-post-v2 comment_to_comment">
                     <form action="{% url 'home:home_CCCcomment' comment.id %}" method="post">{%csrf_token%}
                         {{comment_form | crispy}}
                         <div class="comment_submit_btn"><input class="input_comment_create" type="submit" value="댓글 달기"/></div>
                     </form>
                 </div>
+
                 {%if comment.comment_set.all %}
                     {%for comment_comment in comment.comment_set.all %}
                     <li class="comment_to_comment">
                         <span class="user-name">{{comment_comment.author.user_name}}</span>
                         <span>{{comment_comment.content}}</span>
+                        <a href="{% url 'mypage:commentlike' comment_comment.id %}" class="float-left btn-like {%if user in comment_comment.likes.all %} active {%endif%}">좋아요!</a>
+            
+                        {% if comment_comment.likes.all.count %}
+                        <span class = "float-left">
+                            {{comment_comment.likes.all.count}}
+                        </span>
+                        {%endif%}
                     </li>
+                    
                     {%endfor%}
                 {%endif%}
             </li>
