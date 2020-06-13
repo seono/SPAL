@@ -166,13 +166,17 @@ class PhotoLike(View):
             return HttpResponseForbidden()
         else:
             if 'post_id' in kwargs:
-                post_id = kwargs['post_id']
-                post = Dstagram.objects.get(pk=self.kwargs.get('post_id'))
                 user = request.user
-                if user in post.likes.all():
-                    post.likes.remove(user)
+                post_id = kwargs['post_id']
+                query = "SELECT user_id from mypage_dstagram_likes where dstagram_id = %d and user_id like '%s'"%(post_id, user.user_id)
+                cursor.execute(query)
+                row = cursor.fetchone()
+                if row is None:
+                    query = "INSERT INTO mypage_dstagram_likes(dstagram_id, user_id) values(%d, '%s')"%(post_id, user.user_id)
+                    cursor.execute(query)
                 else:
-                    post.likes.add(user)
+                    query = "DELETE from mypage_dstagram_likes where user_id = '%s'"%user.user_id
+                    cursor.execute(query)
             referer_url = request.META.get('HTTP_REFERER')
             path = urlparse(referer_url).path
             return HttpResponseRedirect(path)
@@ -185,13 +189,15 @@ class CommentLike(View):
         else:
             if 'comment_id' in kwargs:
                 comment_id = kwargs['comment_id']
-                comment = Comment.objects.get(pk=self.kwargs.get('comment_id'))
                 user = request.user
-                if user in comment.likes.all():
-                    query = "DELETE from mypage_comment_likes where user_id = '%s'"%user.user_id
+                query = "SELECT user_id from mypage_comment_likes where comment_id = %d and user_id like '%s'"%(comment_id, user.user_id)
+                cursor.execute(query)
+                row = cursor.fetchone()
+                if row is None:
+                    query = "INSERT INTO mypage_comment_likes(comment_id, user_id) values(%d, '%s')"%(comment_id, user.user_id)
                     cursor.execute(query)
                 else:
-                    query = "INSERT INTO mypage_comment_likes(comment_id, user_id) values(%d, '%s')"%(comment_id, user.user_id)
+                    query = "DELETE from mypage_comment_likes where user_id = '%s'"%user.user_id
                     cursor.execute(query)
             referer_url = request.META.get('HTTP_REFERER')
             path = urlparse(referer_url).path
