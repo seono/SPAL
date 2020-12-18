@@ -92,11 +92,12 @@ class PhotoUploadView(LoginRequiredMixin,CreateView):
         cursor.execute("SELECT * from mypage_dstagram where created = '%s'"%now)
         row = cursor.fetchone()
         id = int(row[0])
+        print(id)
         for i, tag in enumerate(tags):
             tags[i] = tag[1:len(tag)]
         for tag in tags:
             query = "insert into mypage_tag(name, dstagram_id) values('%s','%d')"%(tag,id)
-            cursor.execut(query)
+            cursor.execute(query)
         if self.request.FILES:
             for i,f in enumerate(self.request.FILES.getlist('images')):
                 # rgb color 추출

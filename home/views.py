@@ -35,7 +35,6 @@ class PhotoListView(FormMixin,LoginRequiredMixin,ListView):
         month = now.month
         where = '%(year)s>=YEAR(O.created) AND %(month)s<=MONTH(O.created)'%\
             {'year':year, 'month':month}
-        print(where)
         if l == 1:
             dstagram = Dstagram.objects.raw(
                 "SELECT * from mypage_dstagram O,\
